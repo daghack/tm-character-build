@@ -1,0 +1,17 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/go-gorp/gorp",
+			"repository": "https://github.com/go-gorp/gorp",
+			"revision": "a8a0855190d9f7d95b25bd7497868edf048ea3fe",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mattn/go-sqlite3",
+			"repository": "https://github.com/mattn/go-sqlite3",
+			"revision": "3aefd9f0a162514f66d0e4ceda3edc44e66b502e",
+			"branch": "master"
+		}
+	]
+}

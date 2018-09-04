@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en-US">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+		<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://bootswatch.com/4/darkly/bootstrap.min.css">
+	</head>
+<body ng-app="Todo">
+	<div class="container" ng-controller="TodoCtrl">
+		<div class="row">
+			<div class="col-md-6">
+				<span>Load Build String</span><br/>
+				<input type="text" ng-model="buildstr"/>
+				<button class="bt bt-achieve btn btn-primary" ng-click="load_build_string()">Load</button>
+			</div>
+			<div class="col-md-6" style="word-wrap:break-word">
+				<span>Current Build String: </span><br/>
+				<textarea readonly class="container-fluid">{{ get_b64_string() }}</textarea>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-6">
+				<div class="container-fluid">
+					<h1>Available</h1>
+				</div>
+				<div id="accordian">
+					<div class="container-fluid" ng-repeat="(tree, list) in trees">
+						<div class="card">
+							<span role="button" id="{{genIdHelper(tree, 'header')}}" class="btn" data-toggle="collapse" data-target="{{genIdHelper(tree, '#collapse')}}" aria-expanded="false" alia-controls="{{genIdHelper(tree, 'header')}}">
+								{{tree}}
+							</span>
+							<div id="{{genIdHelper(tree, 'collapse')}}" class="collapse" aria-labelledby="{{genIdHelper(tree, 'header')}}" data-parent="#accordian">
+								<div class="card-body">
+									<table class="table table-sm table-striped">
+										<thead class="thead-light">
+											<tr>
+												<th scope="col"> Skill Name </th>
+												<th class="text-center" scope="col"> CP </th>
+												<th scope="col"></th>
+											</tr>
+										</thead>
+										<tbody ng-repeat="skill in list track by $index">
+											<tr>
+												<td>{{ skill.Name }}</td>
+												<td class="text-center">{{ skill.Cost }}</td>
+												<td class="container-fluid bt bt-achieve btn btn-primary" ng-click="add_skill(skill)"> Add </td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="container-fluid">
+					<h1>Purchased</h1>
+				</div>
+				<table class="table table-sm table-striped">
+					<thead class="thead-light">
+						<tr>
+							<th scope="col"> Skill Name </th>
+							<th scope="col"></th>
+							<th class="text-right" scope="col"> Count </th>
+							<th class="text-right" scope="col"> CP Cost: {{ total_cost() }}</th>
+						</tr>
+					</thead>
+					<tbody ng-repeat="skill in skills track by $index">
+						<tr>
+							<td>{{ skill.skill.Name }}</td>
+							<td>{{ skill.skill.Tree.substring(0, 20) + (skill.skill.Tree.length > 20 ? "..." : "")}}</td>
+							<td class="text-right">{{ skill.count }}</td>
+							<td class="text-right">{{ skill.count * skill.skill.Cost }}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</body>
+	<script>
+baseUrl = "http://wormhole.omniadiscordia.net:9090"
+var app = angular.module('Todo', []);
+app.controller('TodoCtrl', function($scope, $http, $filter) {
+	$scope.skills = {};
+	$scope.buildstr = "";
+	$scope.trees = {};
+	$http.get(baseUrl + "/noprereqs").then(function(response){
+		$scope.query = $filter('orderBy')(response.data, (value) => value.Tree + value.Name);
+		$scope.update_trees();
+	}, function(response){
+		$scope.message = "ERROR";
+	});
+	$scope.get_string = function(skills) {
+		var skillVals = [];
+		for(var key in $scope.skills) {
+			skillVals.push($scope.skills[key].skill.Id.toString() + "x" + $scope.skills[key].count.toString());
+		}
+		return skillVals.join();
+	};
+	$scope.get_b64_string = function() {
+		return btoa($scope.get_string());
+	};
+	$scope.load_build_string = function() {
+		var request = baseUrl + "/buildstr?skills=";
+		request += atob($scope.buildstr);
+		console.log(request);
+		$http.get(request).then(function(response){
+			var listlen = response.data.length;
+			$scope.skills = {};
+			for(i=0; i<listlen; i+=1) { //>
+				var skill = response.data[i];
+				$scope.skills[skill.Name] = {skill : skill, count : skill.Count}
+			}
+			$scope.update_available();
+		}, function(response){});
+	};
+	$scope.update_available = function() {
+		var requestStr = baseUrl + "/prereqs?skills=";
+		requestStr += $scope.get_string();
+		$http.get(requestStr).then(function(response){
+			$scope.query = $filter('orderBy')(response.data, (value) => value.Tree + value.Name);
+			$scope.update_trees();
+		}, function(response){});
+	};
+	$scope.update_trees = function() {
+		$scope.trees = {};
+		var listlen = $scope.query.length;
+		for(i=0; i<listlen; i+=1) { //>
+			if(!$scope.trees.hasOwnProperty($scope.query[i].Tree)) {
+				$scope.trees[$scope.query[i].Tree] = [];
+			}
+			$scope.trees[$scope.query[i].Tree].push($scope.query[i]);
+		}
+	};
+	$scope.add_skill = function(skill) {
+		if(!$scope.skills.hasOwnProperty(skill.Name)) {
+			$scope.skills[skill.Name] = {skill : skill, count : 0};
+		}
+		$scope.skills[skill.Name].count++;
+		$scope.update_available();
+	};
+	$scope.total_cost = function() {
+		var total = 0;
+		for(var key in $scope.skills) {
+			total += $scope.skills[key].count * $scope.skills[key].skill.Cost;
+		}
+		return total;
+	};
+	$scope.genIdHelper = function(tree, prepend) {
+		return prepend + tree.replace(/\s/g, '');
+	};
+});
+	</script>
+</html>
